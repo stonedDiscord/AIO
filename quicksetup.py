@@ -12,6 +12,7 @@ pip_install('pyinstaller')
 
 print "installing ini"
 pip_install('ini')
+pip_install('iniconfig')
 
 print "please download and extract pybass from https://sourceforge.net/projects/pybass/files/pybass_055.zip/download"
 print "you also have to rename pybass.py to __init__.py"
