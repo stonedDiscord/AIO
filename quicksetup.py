@@ -13,24 +13,8 @@ pip_install('pyinstaller')
 print "installing ini"
 pip_install('ini')
 
-print "downloading pybass"
-filedata = urllib2.urlopen('https://datapacket.dl.sourceforge.net/project/pybass/pybass_055.zip')  
-datatowrite = filedata.read()
-
-with open('pybass_055.zip', 'wb') as f:  
-    f.write(datatowrite)
-    f.close()
-
-print "extracting pybass"
-zip_ref = zipfile.ZipFile('pybass_055.zip', 'r')
-zip_ref.extractall()
-zip_ref.close()
-
-print "renaming pybass.py"
-if os.path.exists('pybass/__init__.py'):
-    os.remove('pybass/__init__.py')
-os.rename('pybass/pybass.py', 'pybass/__init__.py')
-
+print "please download and extract pybass from https://sourceforge.net/projects/pybass/files/pybass_055.zip/download"
+print "you also have to rename pybass.py to __init__.py"
 
 print "downloading bass"
 filedata = urllib2.urlopen('http://us.un4seen.com/files/bass24.zip')  
@@ -46,17 +30,7 @@ zip_ref.extract('bass.dll')
 zip_ref.close()
 
 if os.name == 'nt':
-    print "downloading pyqt4"
-    filedata = urllib2.urlopen('https://download.lfd.uci.edu/pythonlibs/u2hcgva4/PyQt4-4.11.4-cp27-cp27m-win32.whl')  
-    datatowrite = filedata.read()
-
-    with open('PyQt4-4.11.4-cp27-cp27m-win32.whl', 'wb') as f:  
-        f.write(datatowrite)
-        f.close()
-    
-
-    print "installing pyqt4"
-    pip_install('PyQt4-4.11.4-cp27-cp27m-win32.whl')
+    print "please download and install PyQt4 from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyqt4"
 else:
     
     print "downloading bass-linux"
