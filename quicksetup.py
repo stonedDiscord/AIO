@@ -12,29 +12,14 @@ pip_install('pyinstaller')
 
 print "installing ini"
 pip_install('ini')
+pip_install('iniconfig')
 
 print "installing requests"
 pip_install('requests')
 import requests
 
-print "downloading pybass"
-filedata = urllib2.urlopen('http://master.dl.sourceforge.net/project/pybass/pybass_055.zip')  
-datatowrite = filedata.read()
-
-with open('pybass_055.zip', 'wb') as f:  
-    f.write(datatowrite)
-    f.close()
-
-print "extracting pybass"
-zip_ref = zipfile.ZipFile('pybass_055.zip', 'r')
-zip_ref.extractall()
-zip_ref.close()
-
-print "renaming pybass.py"
-if os.path.exists('pybass/__init__.py'):
-    os.remove('pybass/__init__.py')
-os.rename('pybass/pybass.py', 'pybass/__init__.py')
-
+print "please download and extract pybass from https://sourceforge.net/projects/pybass/files/pybass_055.zip/download"
+print "you also have to rename pybass.py to __init__.py"
 
 print "downloading bass"
 filedata = urllib2.urlopen('http://us.un4seen.com/files/bass24.zip')  

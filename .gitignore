@@ -5,6 +5,7 @@ dist/
 server/*.txt
 server/*.pyc
 server/_commands/*.pyc
+.vscode/
 *.exe
 bass.dll
 bass24.zip
