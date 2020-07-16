@@ -2,6 +2,9 @@ data/
 pybass/
 build/
 dist/
+server/*.txt
+server/*.pyc
+server/_commands/*.pyc
 .vscode/
 *.exe
 bass.dll
@@ -11,3 +14,4 @@ PyQt4-4.11.4-cp27-cp27m-win32.whl
 pybass_055.zip
 *.zip
 qt.conf
+Thumbs.db

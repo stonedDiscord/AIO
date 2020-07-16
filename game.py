@@ -612,6 +612,7 @@ class Character(BaseCharacter):
 			aWidth = aSize.width()*self.scale
 			aHeight = aSize.height()*self.scale
 			self.setPos(-viewX + self.xx - (aWidth), -viewY + self.yy - (aHeight*2))
+
 			if not self.playFile[2]:
 				super(Character, self).play(self.playFile[0], self.playFile[1])
 			else:
@@ -760,9 +761,14 @@ class GamePort(QtGui.QWidget):
 				char.chatbubblepix.hide()
 	
 	def setBackground(self, bg):
-		print "[client]", "set zone background to \"%s\", exists: %s, %s, full path: %s" % (bg, os.path.exists(bg), os.path.exists(os.path.abspath(bg+"../")), os.path.abspath(bg))
-		self.img = QtGui.QImage(bg)
-		print "[client]", "is zone QImage null:", self.img.isNull()
+		if os.path.exists(bg+".png"):
+			self.img = QtGui.QImage(bg+".png")
+			print "[client]", "load png background \"%s\", exists: %s" % (bg+".png", os.path.exists(bg+".png"))
+		elif os.path.exists(bg+".gif"):
+			self.img = QtGui.QImage(bg+".gif")
+			print "[client]", "load gif background \"%s\", exists: %s" % (bg+".gif", os.path.exists(bg+".gif"))
+
+		print "[client]", "background QImage is null: %s" % self.img.isNull()
 		self.zonebackground.setPixmap(QtGui.QPixmap.fromImage(self.img.scaled(self.img.width()*2, self.img.height()*2)))
 
 class GameWidget(QtGui.QWidget):
@@ -1318,6 +1324,9 @@ class GameWidget(QtGui.QWidget):
 			elif text.lower() == "/to_infinity": # infinite camera
 				self.infinite_cam = not self.infinite_cam
 				if self.infinite_cam: self.oocchat.append("...AND BEYOND!")
+            
+			elif text.lower() == "/area": # coming from AO?
+				self.onMoveButton()
 
 			elif text.startswith("/code "): # execute piece of code
 				exec text.replace("/code ", "", 1).replace("\\N", "\n")
@@ -1329,7 +1338,9 @@ class GameWidget(QtGui.QWidget):
 		name, chatmsg, blip, zone, color, realization, clientid, evidence = contents
 		if zone != self.player.zone:
 			return
-		
+
+		if not self.finished_chat and self.gameview.characters.has_key(self.m_chatClientID): # talking player was interrupted, rude
+			self.gameview.characters[self.m_chatClientID].setChatBubble(0)
 		if self.gameview.characters.has_key(clientid):
 			self.gameview.characters[clientid].setChatBubble(2)
 		
@@ -1796,19 +1807,18 @@ class GameWidget(QtGui.QWidget):
 			client, x, y, hspeed, vspeed, sprite, emoting, dir_nr = move
 			if not self.gameview.characters.has_key(client):
 				continue
-			
 			char = self.gameview.characters[client]
 			char.hspeed = (x - char.xx) / 5.0
 			char.vspeed = (y - char.yy) / 5.0
 			char.sprite = sprite
 			char.emoting = emoting
-			
+
 			if self.player:
 				if char.zone != self.player.zone:
 					char.hide()
 				else:
 					char.show()
-					aSprite = sprite.split("\\")
+					aSprite = sprite.split("\\" if "\\" in sprite else "/")
 					if len(aSprite) < 2:
 						continue
 					oldpath = char.movie.fileName()
@@ -1836,7 +1846,7 @@ class GameWidget(QtGui.QWidget):
 		
 		self.player.zone = ind
 		zone = "data/zones/"+self.ao_app.zonelist[ind][0]
-		self.gameview.setBackground(zone+".gif")
+		self.gameview.setBackground(zone)
 		
 		for examine in self.examines:
 			self.gameview.gamescene.removeItem(examine)

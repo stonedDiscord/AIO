@@ -14,6 +14,10 @@ print "installing ini"
 pip_install('ini')
 pip_install('iniconfig')
 
+print "installing requests"
+pip_install('requests')
+import requests
+
 print "please download and extract pybass from https://sourceforge.net/projects/pybass/files/pybass_055.zip/download"
 print "you also have to rename pybass.py to __init__.py"
 
@@ -31,7 +35,17 @@ zip_ref.extract('bass.dll')
 zip_ref.close()
 
 if os.name == 'nt':
-    print "please download and install PyQt4 from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyqt4"
+    print "downloading pyqt4"
+    filedata = requests.get('http://raw.githubusercontent.com/dhb52/python-lib/master/PyQt4-4.11.4-cp27-cp27m-win32.whl')  
+    datatowrite = filedata.content
+
+    with open('PyQt4-4.11.4-cp27-cp27m-win32.whl', 'wb') as f:  
+        f.write(datatowrite)
+        f.close()
+    
+
+    print "installing pyqt4"
+    pip_install('PyQt4-4.11.4-cp27-cp27m-win32.whl')
 else:
     
     print "downloading bass-linux"
@@ -49,7 +63,7 @@ else:
     
     
     print "downloading sip"
-    filedata = urllib2.urlopen('https://www.riverbankcomputing.com/static/Downloads/sip/4.19.15/sip-4.19.15.tar.gz')  
+    filedata = urllib2.urlopen('http://www.riverbankcomputing.com/static/Downloads/sip/4.19.15/sip-4.19.15.tar.gz')  
     datatowrite = filedata.read()
 
     with open('sip.tar.gz', 'wb') as f:  

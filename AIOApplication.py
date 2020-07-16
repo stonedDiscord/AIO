@@ -75,16 +75,16 @@ class AIOApplication(QtGui.QApplication):
 		if os.path.exists("data/sounds/music/"+file):
 			filename, extension = os.path.splitext(file)
 			extension = extension.lower()
-			if extension == ".mod" or extension == ".mid" or extension == ".midi" or extension == ".xm" or extension == ".s3m" or extension == ".it":
+			if extension == ".mod" or extension == ".xm" or extension == ".s3m" or extension == ".it":
 				self.music = BASS_MusicLoad(False, "data/sounds/music/"+file, 0, 0, 0, 0)
 			else:
 				self.music = BASS_StreamCreateFile(False, "data/sounds/music/"+file, 0, 0, BASS_SAMPLE_LOOP)
 
 		elif file.lower().startswith("http") or file.lower().startswith("ftp"): # stream from internet
-                        self.music = BASS_StreamCreateURL(file, 0, 0, DOWNLOADPROC(), 0)
+			self.music = BASS_StreamCreateURL(file, 0, 0, DOWNLOADPROC(), 0)
 
-                if self.music:
-                        BASS_ChannelSetAttribute(self.music, BASS_ATTRIB_VOL, self.musicvol / 100.0)
+		if self.music:
+			BASS_ChannelSetAttribute(self.music, BASS_ATTRIB_VOL, self.musicvol / 100.0)
 			BASS_ChannelPlay(self.music, True)
 		
 	def playSound(self, file):
