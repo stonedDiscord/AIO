@@ -1,4 +1,4 @@
-import socket, thread, iniconfig, os, sys, struct, urllib, time, traceback
+import socket, thread, iniconfig, os, sys, struct, urllib, time, traceback, zlib
 import AIOprotocol
 from AIOplayer import *
 
@@ -7,56 +7,12 @@ sys.path.append("./server/plugins")
 from plugin import Plugin, PluginError
 import _commands as Commands
 from server_vars import *
-
-def string_unpack(buf):
-    unpacked = buf.split("\0")[0]
-    gay = list(buf)
-    for l in range(len(unpacked+"\0")):
-        try:
-            del gay[0]
-        except:
-            break
-    return "".join(gay), unpacked
-
-def buffer_read(format, buffer):
-    if format != "S":
-        unpacked = struct.unpack_from(format, buffer)
-        size = struct.calcsize(format)
-        liss = list(buffer)
-        for l in range(size):
-            del liss[0]
-        returnbuffer = "".join(liss)
-        return returnbuffer, unpacked[0]
-    else:
-        return string_unpack(buffer)
-
-def versionToInt(ver):
-    v = ver.split(".")
-    major = v[0]
-    minor = v[1]
-    if len(v) > 2:
-        patch = v[2]
-    else:
-        patch = "0"
-    
-    try:
-        return int(major+minor+patch)
-    except:
-        return int(major+minor+"0")
-
-def versionToStr(ver):
-    major = ver[1]
-    minor = ver[0]
-    if len(ver) > 2:
-        patch = ver[2]
-    else:
-        return major+"."+minor
-    
-    return  major+"."+minor+"."+patch
+from packing import *
 
 class AIOserver(object):
     running = False
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     plugins = []
     readbuffer = ""
     econTemp = ""
@@ -282,7 +238,7 @@ class AIOserver(object):
                 
                 client.settimeout(0.1)
                 self.clients[i].is_authed = ipaddr[0].startswith("127.") # automatically make localhost an admin
-                self.sendToMasterServer("13#"+self.servername.replace("#", "<num>")+" ["+str(len(self.clients.keys()))+"/"+str(self.maxplayers)+"]#"+self.serverdesc.replace("#", "<num>")+"#"+str(self.port)+"#%")
+                #self.sendToMasterServer("13#"+self.servername.replace("#", "<num>")+" ["+str(len(self.clients.keys()))+"/"+str(self.maxplayers)+"]#"+self.serverdesc.replace("#", "<num>")+"#"+str(self.port)+"#%")
                 self.clients[i].pingpong = ClientPingTime
                 thread.start_new_thread(self.clientLoop, (i,))
                 return
@@ -701,7 +657,8 @@ class AIOserver(object):
                 self.Print("server", "kicked client %d (%s): %s" % (ClientID, self.getCharName(player.CharID), reason))
             
             if not noUpdate:
-                self.sendToMasterServer("13#"+self.servername.replace("#", "<num>")+" ["+str(len(self.clients.keys())-1)+"/"+str(self.maxplayers)+"]#"+self.serverdesc.replace("#", "<num>")+"#"+str(self.port)+"#%")
+                pass
+                #self.sendToMasterServer("13#"+self.servername.replace("#", "<num>")+" ["+str(len(self.clients.keys())-1)+"/"+str(self.maxplayers)+"]#"+self.serverdesc.replace("#", "<num>")+"#"+str(self.port)+"#%")
 
     
     def ban(self, ClientID, length, reason):
@@ -968,19 +925,20 @@ class AIOserver(object):
             return False
         
         self.ms_tcp.setblocking(False)
-        self.ms_tcp.send("13#"+self.servername.replace("#", "<num>")+" ["+str(len(self.clients.keys()))+"/"+str(self.maxplayers)+"]#"+self.serverdesc.replace("#", "<num>")+"#"+str(self.port)+"#%\n")
+
+        #self.ms_tcp.send("13#"+self.servername.replace("#", "<num>")+" ["+str(len(self.clients.keys()))+"/"+str(self.maxplayers)+"]#"+self.serverdesc.replace("#", "<num>")+"#"+str(self.port)+"#%\n")
         self.MSstate = MASTER_WAITINGSUCCESS
         return True
     
     def sendToMasterServer(self, msg):
         try:
-            self.ms_tcp.send(msg+"\n")
+            self.ms_tcp.send(struct.pack("I", len(msg)) + msg)
         except:
             pass
     
     def masterServerTick(self):
         try:
-            data = self.ms_tcp.recv(4096)
+            data = self.ms_tcp.recv(4)
         except (socket.error, socket.timeout) as e:
             if e.args[0] == 10035 or e.errno == 11 or e.args[0] == "timed out":
                 return True
@@ -991,42 +949,43 @@ class AIOserver(object):
         if not data:
             self.Print("masterserver", "no data from master server (connection lost), retrying.")
             return False
-        
-        t = data.split("%")
-        for msg in t:
-            network = msg.split("#")
-            header = network.pop(0)
-            if header == "SUCCESS":
-                type = network[0]
-                if type == "13":
-                    if self.MSstate == MASTER_WAITINGSUCCESS:
-                        self.MSstate = MASTER_PUBLISHED
-                        self.MStick = 200
-                        ip = self.ms_addr[0]
-                        if ip.startswith("127.") or ip == "localhost":
-                            try:
-                                url = urllib.urlopen("http://ipv4bot.whatismyipaddress.com")
-                            except:
-                                self.Print("masterserver", "failed to get own IP address. make sure you have internet access.")
-                                self.MSstate = -1
-                                self.ms_tcp.close()
-                                return False
-            
-                            ip = url.read().rstrip()
-                            self.ms_tcp.send("SET_IP#"+ip+"#%\n")
-                        else:
-                            self.Print("masterserver", "server published.")
-                    
-                elif type == "SET_IP":
-                    self.Print("masterserver", "server published.")
-                
-                elif type == "KEEPALIVE":
-                    self.MStick = 200
+
+        if len(data) < 4: # we need these 4 bytes to read the packet length
+            return True
+
+        try:
+            data, bufflength = buffer_read("I", data)
+            data = self.ms_tcp.recv(bufflength+1)
+        except socket.error as e:
+            if e.args[0] == 10035 or e.errno == 11 or e.args[0] == "timed out":
+                return True
+            else:
+                self.Print("masterserver", "connection to master server lost, retrying.")
+                return False
+        except (MemoryError, OverflowError, struct.error):
+            return True
+
+        data = zlib.decompress(data)
+        data, header = buffer_read("B", data)
+
+        if header == AIOprotocol.MS_CONNECTED:
+            resp = struct.pack("B", AIOprotocol.MS_PUBLISH)
+            resp += struct.pack("H", self.port)
+            self.sendToMasterServer(resp)
+
+        elif header == AIOprotocol.MS_PUBLISH: # success
+            if self.MSstate == MASTER_WAITINGSUCCESS:
+                self.MSstate = MASTER_PUBLISHED
+                self.MStick = 200
+                self.Print("masterserver", "server published.")
+
+        elif header == AIOprotocol.MS_KEEPALIVE:
+            self.MStick = 200
         
         return True
     
     def MSkeepAlive(self):
-        self.sendToMasterServer("KEEPALIVE#%")
+        self.sendToMasterServer(struct.pack("B", AIOprotocol.MS_KEEPALIVE))
     
     def ic_tick_thread(self, msg):
         self.ic_finished = False
@@ -1533,9 +1492,11 @@ class AIOserver(object):
 
         self.tcp.bind(("", self.port))
         self.tcp.listen(5)
+        self.udp.bind(("", self.port))
         self.Print("server", "AIO server started on port %d" % self.port)
         
-        self.tcp.settimeout(0.1)
+        self.tcp.setblocking(False)
+        self.udp.settimeout(0.1)
         
         if self.econ_password:
             self.econ_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1585,6 +1546,28 @@ class AIOserver(object):
                     continue
                     
             self.acceptClient()
+            self.udpLoop()
+
+    def udpLoop(self):
+        try:
+            data, addr = self.udp.recvfrom(65535)
+        except socket.error as e:
+            if e.args[0] == 10035 or e.errno == 11 or e.args[0] == "timed out":
+                return
+
+        try:
+            data, header = buffer_read("B", data)
+        except struct.error: # wtf?
+            return
+
+        self.Print("udp", "message from %s: %d" % (addr, header))
+
+        if header == AIOprotocol.UDP_REQUEST:
+            response = struct.pack("B", header)
+            response += self.servername+"\0" + self.serverdesc+"\0"
+            response += struct.pack("IIH", len(self.clients), self.maxplayers, versionToInt(GameVersion))
+
+        self.udp.sendto(zlib.compress(response), addr)
 
     def parseOOCcommand(self, client, cmd, cmdargs):
         isConsole = client == -1
